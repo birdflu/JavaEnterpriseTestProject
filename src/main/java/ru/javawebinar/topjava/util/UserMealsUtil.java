@@ -32,11 +32,13 @@ public class UserMealsUtil {
     fastFilteredByCycles(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000)
             .forEach(System.out::println);
 
+    fastFilteredByClosure(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000)
+            .forEach(System.out::println);
   }
 
   public static List<UserMealWithExcess> filteredByCycles(
           List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
-    Map<LocalDate, Integer> summarizingCalories = new HashMap<>();
+    final Map<LocalDate, Integer> summarizingCalories = new HashMap<>();
     for (UserMeal meal : meals) {
       summarizingCalories.put(meal.getDate(),
               summarizingCalories.getOrDefault(meal.getDate(), 0) +
@@ -46,6 +48,18 @@ public class UserMealsUtil {
     List<UserMealWithExcess> filteredMeals = new ArrayList<>();
 
     for (UserMeal meal : meals) {
+      if (TimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime)) {
+        filteredMeals.add(getUserMealWithExcess(caloriesPerDay, summarizingCalories, meal, meal.getDateTime().toLocalDate()));
+      }
+    }
+    return filteredMeals;
+  }
+
+  public static List<UserMealWithExcess> fastFilteredByClosure(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+    final Map<LocalDate, Integer> summarizingCalories = new HashMap<>();
+    List<UserMealWithExcess> filteredMeals = new ArrayList<>();
+    for (UserMeal meal : meals) {
+      summarizingCalories.merge(meal.getDate(), meal.getCalories(), Integer::sum);
       if (TimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime)) {
         filteredMeals.add(getUserMealWithExcess(caloriesPerDay, summarizingCalories, meal, meal.getDateTime().toLocalDate()));
       }
@@ -70,9 +84,7 @@ public class UserMealsUtil {
     List<UserMeal> filteredMeals = new ArrayList<>();
 
     for (UserMeal meal : meals) {
-      summarizingCalories.put(meal.getDate(),
-              summarizingCalories.getOrDefault(meal.getDate(), 0) +
-                      meal.getCalories());
+      summarizingCalories.merge(meal.getDate(), meal.getCalories(), Integer::sum);
 
       if (TimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime)) {
         filteredMeals.add(meal);
@@ -88,9 +100,14 @@ public class UserMealsUtil {
     return userMealWithExcesses;
   }
 
+//  private static UserMealWithExcess getUserMealWithExcess(int caloriesPerDay, Map<LocalDate, Integer> summarizingCalories, UserMeal m, LocalDate localDate) {
+//    return new UserMealWithExcess(m.getDateTime(), m.getDescription(), m.getCalories(),
+//            caloriesPerDay < summarizingCalories.getOrDefault(localDate, 0));
+//  }
+
   private static UserMealWithExcess getUserMealWithExcess(int caloriesPerDay, Map<LocalDate, Integer> summarizingCalories, UserMeal m, LocalDate localDate) {
     return new UserMealWithExcess(m.getDateTime(), m.getDescription(), m.getCalories(),
-            caloriesPerDay < summarizingCalories.getOrDefault(localDate, 0));
+            () -> caloriesPerDay < summarizingCalories.getOrDefault(localDate, 0));
   }
 
 }
