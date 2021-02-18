@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -25,17 +26,24 @@ public class UserMealsUtil {
             new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
     );
 
+    System.out.println("\nfilteredByCycles");
     List<UserMealWithExcess> mealsTo = filteredByCycles(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000);
     mealsTo.forEach(System.out::println);
 
+    System.out.println("\nfilteredByStreams");
     System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));
 
+    System.out.println("\nfastFilteredByCycles");
     fastFilteredByCycles(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000)
             .forEach(System.out::println);
 
+    System.out.println("\nfastFilteredByPredicate");
     fastFilteredByPredicate(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000)
             .forEach(System.out::println);
 
+    System.out.println("\nfastFilteredByConsumer");
+    fastFilteredByConsumer(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000)
+            .forEach(System.out::println);
   }
 
   public static List<UserMealWithExcess> filteredByCycles(
@@ -106,6 +114,26 @@ public class UserMealsUtil {
       }
     }
     predicate.test(true);
+
+    return filteredMeals;
+  }
+
+  public static List<UserMealWithExcess> fastFilteredByConsumer(
+          List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+    Map<LocalDate, Integer> summarizingCalories = new HashMap<>();
+    List<UserMealWithExcess> filteredMeals = new ArrayList<>();
+
+    Consumer<Void> consumer = c -> {};
+
+    for (UserMeal meal : meals) {
+      summarizingCalories.merge(meal.getDate(), meal.getCalories(), Integer::sum);
+
+      if (TimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime)) {
+        consumer = consumer.andThen(c -> filteredMeals.add(getUserMealWithExcess(
+                caloriesPerDay, summarizingCalories, meal, meal.getDate())));
+      }
+    }
+    consumer.accept(null);
 
     return filteredMeals;
   }
