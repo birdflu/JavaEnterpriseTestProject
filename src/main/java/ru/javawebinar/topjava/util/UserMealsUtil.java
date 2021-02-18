@@ -11,6 +11,8 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.*;
 
@@ -44,6 +46,10 @@ public class UserMealsUtil {
     System.out.println("\nfastFilteredByConsumer");
     fastFilteredByConsumer(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000)
             .forEach(System.out::println);
+
+    System.out.println("\nfastFilteredByStreams");
+    System.out.println(fastFilteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));
+
   }
 
   public static List<UserMealWithExcess> filteredByCycles(
@@ -68,12 +74,23 @@ public class UserMealsUtil {
   public static List<UserMealWithExcess> filteredByStreams(
           List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
     Map<LocalDate, Integer> summarizingCalories =
-            meals.stream().collect(groupingBy(u -> u.getDateTime().toLocalDate(),
+            meals.stream().collect(groupingBy(UserMeal::getDate,
                     Collectors.summingInt(UserMeal::getCalories)));
     return meals.stream()
-            .filter(m -> TimeUtil.isBetweenHalfOpen(m.getDateTime().toLocalTime(), startTime, endTime))
+            .filter(m -> TimeUtil.isBetweenHalfOpen(m.getTime(), startTime, endTime))
             .map(m -> getUserMealWithExcess(caloriesPerDay, summarizingCalories, m, m.getDateTime().toLocalDate()))
             .collect(Collectors.toList());
+  }
+
+  public static List<UserMealWithExcess> fastFilteredByStreams(
+          List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+    return meals.stream().collect(groupingBy(UserMeal::getDate)).entrySet().stream().flatMap(userMeals -> {
+      Map<LocalDate, Integer> summarizingCalories = userMeals.getValue().stream().collect(groupingBy(UserMeal::getDate,
+              summingInt(UserMeal::getCalories)));
+      return userMeals.getValue().stream()
+              .filter(m -> TimeUtil.isBetweenHalfOpen(m.getTime(), startTime, endTime))
+              .map(m -> getUserMealWithExcess(caloriesPerDay, summarizingCalories, m, m.getDateTime().toLocalDate()));
+    }).collect(toList());
   }
 
   public static List<UserMealWithExcess> fastFilteredByCycles(
